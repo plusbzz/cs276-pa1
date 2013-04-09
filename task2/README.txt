@@ -1,0 +1,1 @@
+You will put your task 2 (variable length encoding) code here. Change index.sh and query.sh according to your code. By default they call index.py and query.py in the same directory. Make sure you are able to run both .sh files from the parent directory

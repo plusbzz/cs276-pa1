@@ -1,0 +1,1 @@
+You will put your task 1 (uncompressed indexing and querying) code here. Change index.sh and query.sh according to your code. By default they call index.py and query.py in the same directory. Make sure that both the .sh files are able to run from the parent directory.

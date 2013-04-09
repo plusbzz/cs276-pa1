@@ -1,0 +1,1 @@
+OPTIONAL: You will put your extra credit (compression algorithm) code here. Change index.sh and query.sh according to your code. By default they call index.py and query.py in the same directory. Make sure that the file are able to run from the parent directory

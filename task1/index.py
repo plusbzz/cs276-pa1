@@ -98,10 +98,11 @@ dircnt = 1
 while len(block_q) > 1:
   b1 = block_q.popleft()
   b2 = block_q.popleft()
-  comb = out_dir + '/'+ '_tmp_'+str(dircnt)
+  b_comb = '_tmp_'+str(dircnt)
+  comb = out_dir + '/'+ b_comb
   dircnt += 1
   
-  print >> sys.stderr, 'merging %s and %s' % (b1, b2)
+  print >> sys.stderr, 'merging %s and %s into %s' % (b1, b2,b_comb)
   
   with open(b1,'r') as b1_f, open(b2,'r') as b2_f, open(comb,'w') as comb_f:
     # (provide implementation merging the two blocks of posting lists)
@@ -141,8 +142,8 @@ while len(block_q) > 1:
           print >> comb_f,line2
           line2 = b2_f.readline().strip()
           
-  #os.remove(b1)
-  #os.remove(b2)
+  os.remove(b1)
+  os.remove(b2)
   block_q.append(comb)
     
 print >> sys.stderr, '\nPosting Lists Merging DONE!'

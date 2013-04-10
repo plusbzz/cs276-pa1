@@ -3,6 +3,7 @@ from collections import deque
 import os, glob, os.path
 import sys
 import re
+from itertools import groupby
 
 if len(sys.argv) != 3:
   print >> sys.stderr, 'usage: python index.py data_dir output_dir' 
@@ -39,6 +40,17 @@ def merge_posting (line1, line2):
   print >> sys.stderr, 'you must provide implementation'
   return None
 
+#########################
+def print_postings_to_file(term_doc_list, fname):
+  with open(fname, 'wb') as f:
+    for key,group in groupby(term_doc_list,lambda tup: tup[0]):
+      docs = [tup[1] for tup in group]
+      posting_line = str(key) + ":" + ",".join(docs)
+      print_posting(f,posting_line)
+        
+
+
+#########################
 
 doc_id = -1
 word_id = 0
@@ -70,12 +82,13 @@ for dir in sorted(os.listdir(root)):
   print >> sys.stderr, 'sorting term doc list for dir:' + dir
   term_doc_list.sort(key=lambda tup: tup[0])  # sorts in place
   
-  
   # write the posting lists to block_pl for this current block 
   print >> sys.stderr, 'print posting list to disc for dir:' + dir
+  # (you need to provide implementation)
   block_pl_name = out_dir+'/'+dir
-  with open(block_pl_name, 'wb') as block_pl:
-    pass
+  print_postings_to_file(term_doc_list,block_pl_name)
+
+        
 
   # append block names to a queue, later used in merging
   block_q.append(block_pl_name)

@@ -68,11 +68,11 @@ for dir in sorted(os.listdir(root)):
   
   # sort term doc list
   print >> sys.stderr, 'sorting term doc list for dir:' + dir
-  term_doc_list.sort(key=lambda tup: tup[0])  # sorts in place
-  
+  # (you need to provide implementation)
   
   # write the posting lists to block_pl for this current block 
   print >> sys.stderr, 'print posting list to disc for dir:' + dir
+  # (you need to provide implementation)
   block_pl_name = out_dir+'/'+dir
   with open(block_pl_name, 'wb') as block_pl:
     pass

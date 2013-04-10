@@ -90,7 +90,10 @@ while True:
   
   # merge the posting lists to produce the final result
   result = reduce(merge_posting,postings)
-  
+
+  if len(result) == 0:  
+    print "no results found"
+    continue
 
   # don't forget to convert doc_id back to doc_name, and sort in lexicographical order
   # before printing out to stdout

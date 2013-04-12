@@ -3,6 +3,7 @@ from collections import deque
 import os, glob, os.path
 import sys
 import re
+from itertools import groupby
 
 if len(sys.argv) != 3:
   print >> sys.stderr, 'usage: python index.py data_dir output_dir' 
@@ -15,6 +16,7 @@ if not os.path.exists(out_dir):
   os.makedirs(out_dir)
 
 # this is the actual posting lists dictionary
+# word id -> {position_in_file, doc freq}
 posting_dict = {}
 # this is a dict holding document name -> doc_id
 doc_id_dict = {}
@@ -25,20 +27,69 @@ block_q = deque([])
 
 # function to count number of files in collection
 def count_file():
-  print >> sys.stderr, 'you must provide implementation'
+  global total_file_count
+  total_file_count += 1
 
 # function for printing a line in a postings list to a given file
+# a useful function is f.tell(), which gives you the offset from beginning of file
+# you may also want to consider storing the file position and doc frequence in posting_dict in this call
 def print_posting(file, posting_line):
-  # a useful function is f.tell(), which gives you the offset from beginning of file
-  # you may also want to consider storing the file position and doc frequence in posting_dict in this call
-  print >> sys.stderr, 'you must provide implementation'
-  
-# function for merging two lines of postings list to create a new line of merged results
-def merge_posting (line1, line2):
-  # don't forget to return the resulting line at the end
-  print >> sys.stderr, 'you must provide implementation'
-  return None
+  print >> file,posting_line
 
+#########################
+
+'''
+Format - one posting per line
+
+term_id:doc_id1,doc_id2...
+'''
+def print_postings_to_file(term_doc_list, fname):
+  with open(fname, 'wb') as f:
+    for key,group in groupby(term_doc_list,lambda tup: tup[0]):
+      docs = [str(d) for d in sorted(list(set([tup[1] for tup in group])))]
+      posting_line = str(key) + ":" + ",".join(docs)
+      print >> f, posting_line.strip()
+      
+      
+def variableByteEncodeNumber(aNumber):
+    bytes = deque([])
+    while True:        
+        bytes.appendleft(aNumber % 128)
+        if aNumber < 128:
+            break
+        
+        aNumber = aNumber // 128
+    
+    # Add Continuation Bit = 1
+    bytes[-1] += 128    
+    return bytes
+
+
+def variableByteDecodeArray(byteArray):
+    numbers = [];
+    number  = 0;
+    
+    for byte in byteArray:
+        if byte < 128:
+            # Continuation Bit = 0
+            number = 128*number + byte
+        else:
+            # Continuation Bit = 1
+            number = 128*number + (byte-128)
+            numbers.append(number)
+            number = 0
+            
+    return numbers
+
+def variableByteEncodeNumbers(numbers):
+    encodedNumbers = []
+    for number in numbers:
+        encodedNumbers += variableByteEncodeNumber(number)
+    
+    return encodedNumbers
+
+
+#########################
 
 doc_id = -1
 word_id = 0
@@ -68,14 +119,13 @@ for dir in sorted(os.listdir(root)):
   
   # sort term doc list
   print >> sys.stderr, 'sorting term doc list for dir:' + dir
-  # (you need to provide implementation)
+  term_doc_list.sort(key=lambda tup: tup[0])  # sorts in place
   
   # write the posting lists to block_pl for this current block 
   print >> sys.stderr, 'print posting list to disc for dir:' + dir
   # (you need to provide implementation)
   block_pl_name = out_dir+'/'+dir
-  with open(block_pl_name, 'wb') as block_pl:
-    pass
+  print_postings_to_file(term_doc_list,block_pl_name)
 
   # append block names to a queue, later used in merging
   block_q.append(block_pl_name)
@@ -83,21 +133,55 @@ for dir in sorted(os.listdir(root)):
 print >> sys.stderr, '######\nposting list construction finished!\n##########'
 
 print >> sys.stderr, '\nMerging postings...'
+
 dircnt = 1
 while len(block_q) > 1:
   b1 = block_q.popleft()
   b2 = block_q.popleft()
-  comb = out_dir + '/'+ str(dircnt)
+  b_comb = '_tmp_'+str(dircnt)
+  comb = out_dir + '/'+ b_comb
   dircnt += 1
   
-  print >> sys.stderr, 'merging %s and %s' % (b1, b2)
+  print >> sys.stderr, 'merging %s and %s into %s' % (b1, b2,b_comb)
   
-  with open(b1,'r') as b1_f, open(b2,'r') as b2_f, open(comb,'r') as comb_f:
+  with open(b1,'r') as b1_f, open(b2,'r') as b2_f, open(comb,'w') as comb_f:
     # (provide implementation merging the two blocks of posting lists)
     # write the new merged posting lists block to file 'comb_f'
-    pass
-  
+    line1 = b1_f.readline().strip()
+    line2 = b2_f.readline().strip()
 
+    while True:     
+      if line1 == "" and line2 == "":
+        break
+      elif line1 == "": # at least one of the files is done
+        print >> comb_f, line2
+        for line in b2_f: print >> comb_f,line.strip()
+        break
+      elif line2 == "": # at least one of the files is done
+        print >> comb_f, line1
+        for line in b1_f: print >> comb_f,line.strip()
+        break
+      else:  # files have stuff in them
+        term1,docs1 = line1.split(":")
+        term2,docs2 = line2.split(":")
+        term1 = int(term1)
+        term2 = int(term2)
+  
+        # We now have two sorted lists
+        if term1 == term2: 
+          docs1 = [int(d) for d in docs1.strip().split(",")]
+          docs2 = [int(d) for d in docs2.strip().split(",")]
+          docs  = [str(d) for d in sorted(docs1+docs2)]
+          print >> comb_f, str(term1) + ":" + ",".join(docs)
+          line1 = b1_f.readline().strip()
+          line2 = b2_f.readline().strip()
+        elif term1 < term2:
+          print >> comb_f,line1
+          line1 = b1_f.readline().strip()
+        else:
+          print >> comb_f,line2
+          line2 = b2_f.readline().strip()
+          
   os.remove(b1)
   os.remove(b2)
   block_q.append(comb)
@@ -106,7 +190,21 @@ print >> sys.stderr, '\nPosting Lists Merging DONE!'
 
 # rename the final merged block to corpus.index
 final_name = block_q.popleft()
-os.rename(out_dir+'/'+final_name, out_dir+'/corpus.index')
+# Create postings dictionary
+with open(final_name,'r') as index:
+  fp = 0
+  line = index.readline()
+  while True:
+    if line != "":
+      term,docs = line.strip().split(':')    
+      posting_dict[term] = (fp,len(docs.split(',')))
+      fp = index.tell()
+      line = index.readline()
+    else:
+      break
+    
+os.rename(final_name, out_dir+'/corpus.index')
+
 
 # print all the dictionary files
 doc_dict_f = open(out_dir + '/doc.dict', 'w')

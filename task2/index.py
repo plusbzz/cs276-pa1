@@ -87,6 +87,117 @@ def variableByteEncodeNumbers(numbers):
         encodedNumbers += variableByteEncodeNumber(number)
     
     return encodedNumbers
+  
+def generateGaps(docIdList):
+    gaps = []
+    previous = 0
+    for docId in docIdList:
+        gaps.append(docId-previous)
+        previous = docId
+        
+    return gaps
+
+def writeVariableByteEncodedGaps(strLine,outputFile,postingDictionary):
+    term,docsId = strLine.split(":")
+    term   = int(term)
+    docsId = sorted([int(d) for d in docsId.strip().split(",")])
+    
+    position = outputFile.tell()
+    postingDictionary[term] = (position,len(docsId))
+    
+    gaps        = generateGaps(docsId)
+    encodedGaps = variableByteEncodeNumbers(gaps)
+    
+    for number in encodedGaps:
+      #print >> sys.stderr, "Writing to file %s the code: %d in byte %d" % (outputfile,number,position)
+      # TODO: Find a way to write a block of bytes instead of writing byte per byte 
+      outputFile.write(chr(number))        
+  
+def mergeBlocks(b1,b2,outputFile):
+  with open(b1,'r') as b1_f, open(b2,'r') as b2_f, open(outputFile,'w') as outputFile_f:
+    # (provide implementation merging the two blocks of posting lists)
+    # write the new merged posting lists block to file 'outputFile_f'
+    line1 = b1_f.readline().strip()
+    line2 = b2_f.readline().strip()
+
+    while True:     
+      if line1 == "" and line2 == "":
+        break
+      elif line1 == "": # at least one of the files is done
+        print >> outputFile_f, line2
+        for line in b2_f: print >> outputFile_f,line.strip()
+        break
+      elif line2 == "": # at least one of the files is done
+        print >> outputFile_f, line1
+        for line in b1_f: print >> outputFile_f,line.strip()
+        break
+      else:  # files have stuff in them
+        term1,docs1 = line1.split(":")
+        term2,docs2 = line2.split(":")
+        term1 = int(term1)
+        term2 = int(term2)
+  
+        # We now have two sorted lists
+        if term1 == term2: 
+          docs1 = [int(d) for d in docs1.strip().split(",")]
+          docs2 = [int(d) for d in docs2.strip().split(",")]
+          docs  = [str(d) for d in sorted(docs1+docs2)]
+          print >> outputFile_f, str(term1) + ":" + ",".join(docs)
+          line1 = b1_f.readline().strip()
+          line2 = b2_f.readline().strip()
+        elif term1 < term2:
+          print >> outputFile_f,line1
+          line1 = b1_f.readline().strip()
+        else:
+          print >> outputFile_f,line2
+          line2 = b2_f.readline().strip()
+
+def mergeBlocksVariableByteEncoding(b1,b2,outputFile,postingDictionary):
+  with open(b1,'r') as b1_f, open(b2,'r') as b2_f, open(outputFile,'wb') as outputFile_f:
+    # (provide implementation merging the two blocks of posting lists)
+    # write the new merged posting lists block to file 'outputFile_f'
+    line1 = b1_f.readline().strip()
+    line2 = b2_f.readline().strip()
+
+    while True:     
+      if line1 == "" and line2 == "":
+        break
+      elif line1 == "": # at least one of the files is done
+        writeVariableByteEncodedGaps(line2,outputFile_f,postingDictionary)    
+        for line in b2_f: writeVariableByteEncodedGaps(line.strip(),outputFile_f,postingDictionary)
+        break
+    
+      elif line2 == "": # at least one of the files is done
+        writeVariableByteEncodedGaps(line1,outputFile_f,postingDictionary)    
+        for line in b1_f: writeVariableByteEncodedGaps(line.strip(),outputFile_f,postingDictionary)
+        break
+    
+      else:  # files have stuff in them
+        term1,docs1 = line1.split(":")
+        term2,docs2 = line2.split(":")
+        term1 = int(term1)
+        term2 = int(term2)
+  
+        # We now have two sorted lists
+        if term1 == term2: 
+          docs1 = [int(d) for d in docs1.strip().split(",")]
+          docs2 = [int(d) for d in docs2.strip().split(",")]
+          docs  = [str(d) for d in sorted(docs1+docs2)]
+          
+          line = str(term1) + ":" + ",".join(docs)
+          writeVariableByteEncodedGaps(line.strip(),outputFile_f,postingDictionary)
+          
+          line1 = b1_f.readline().strip()
+          line2 = b2_f.readline().strip()
+          
+        elif term1 < term2:
+          writeVariableByteEncodedGaps(line1.strip(),outputFile_f,postingDictionary)
+          line1 = b1_f.readline().strip()
+          
+        else:
+          writeVariableByteEncodedGaps(line2.strip(),outputFile_f,postingDictionary)
+          line2 = b2_f.readline().strip()
+
 
 
 #########################
@@ -131,7 +242,6 @@ for dir in sorted(os.listdir(root)):
   block_q.append(block_pl_name)
 
 print >> sys.stderr, '######\nposting list construction finished!\n##########'
-
 print >> sys.stderr, '\nMerging postings...'
 
 dircnt = 1
@@ -144,75 +254,27 @@ while len(block_q) > 1:
   
   print >> sys.stderr, 'merging %s and %s into %s' % (b1, b2,b_comb)
   
-  with open(b1,'r') as b1_f, open(b2,'r') as b2_f, open(comb,'w') as comb_f:
-    # (provide implementation merging the two blocks of posting lists)
-    # write the new merged posting lists block to file 'comb_f'
-    line1 = b1_f.readline().strip()
-    line2 = b2_f.readline().strip()
-
-    while True:     
-      if line1 == "" and line2 == "":
-        break
-      elif line1 == "": # at least one of the files is done
-        print >> comb_f, line2
-        for line in b2_f: print >> comb_f,line.strip()
-        break
-      elif line2 == "": # at least one of the files is done
-        print >> comb_f, line1
-        for line in b1_f: print >> comb_f,line.strip()
-        break
-      else:  # files have stuff in them
-        term1,docs1 = line1.split(":")
-        term2,docs2 = line2.split(":")
-        term1 = int(term1)
-        term2 = int(term2)
+  if len(block_q) > 0:
+    mergeBlocks(b1,b2,comb)
+  else:
+    # These are the last two blocks, generate a compressed/encoded corpus index
+    mergeBlocksVariableByteEncoding(b1,b2,comb,posting_dict)
   
-        # We now have two sorted lists
-        if term1 == term2: 
-          docs1 = [int(d) for d in docs1.strip().split(",")]
-          docs2 = [int(d) for d in docs2.strip().split(",")]
-          docs  = [str(d) for d in sorted(docs1+docs2)]
-          print >> comb_f, str(term1) + ":" + ",".join(docs)
-          line1 = b1_f.readline().strip()
-          line2 = b2_f.readline().strip()
-        elif term1 < term2:
-          print >> comb_f,line1
-          line1 = b1_f.readline().strip()
-        else:
-          print >> comb_f,line2
-          line2 = b2_f.readline().strip()
-          
   os.remove(b1)
   os.remove(b2)
   block_q.append(comb)
     
-print >> sys.stderr, '\nPosting Lists Merging DONE!'
 
-# rename the final merged block to corpus.index
-final_name = block_q.popleft()
-# Create postings dictionary
-with open(final_name,'r') as index:
-  fp = 0
-  line = index.readline()
-  while True:
-    if line != "":
-      term,docs = line.strip().split(':')    
-      posting_dict[term] = (fp,len(docs.split(',')))
-      fp = index.tell()
-      line = index.readline()
-    else:
-      break
-    
+# Rename the final merged block to corpus.index    
 os.rename(final_name, out_dir+'/corpus.index')
 
+print >> sys.stderr, '\nPosting Lists Merging DONE!'
 
-# print all the dictionary files
+# Write to file word and doc dictionary files
 doc_dict_f = open(out_dir + '/doc.dict', 'w')
 word_dict_f = open(out_dir + '/word.dict', 'w')
-posting_dict_f = open(out_dir + '/posting.dict', 'w')
 print >> doc_dict_f, '\n'.join( ['%s\t%d' % (k,v) for (k,v) in sorted(doc_id_dict.iteritems(), key=lambda(k,v):v)])
 print >> word_dict_f, '\n'.join( ['%s\t%d' % (k,v) for (k,v) in sorted(word_dict.iteritems(), key=lambda(k,v):v)])
-print >> posting_dict_f, '\n'.join(['%s\t%s' % (k,'\t'.join([str(elm) for elm in v])) for (k,v) in sorted(posting_dict.iteritems(), key=lambda(k,v):v)])
 doc_dict_f.close()
 word_dict_f.close()
 posting_dict_f.close()

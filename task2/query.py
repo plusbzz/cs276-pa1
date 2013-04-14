@@ -83,7 +83,7 @@ def readCompressedIndex(index_f,wordId,file_pos,numberOfBytes):
   decodedGaps = variableByteDecodeArray(encodedGaps)
   docIds      = generateDocIds(decodedGaps)
   
-  return str(wordId) + ":" + ",".join(docIds)
+  return str(wordId) + ":" + ",".join([str(d) for d in docIds])
   
 
 # provide implementation for posting list lookup for a given term
@@ -102,7 +102,7 @@ def read_posting(term):
       positionNextTerm = file_pos_dict[term_id+1]
       
     gapListLengthInBytes = positionNextTerm - file_pos
-    postings = readCompressedIndex(index_f,file_pos,gapListLengthInBytes)
+    postings = readCompressedIndex(index_f,term_id,file_pos,gapListLengthInBytes)
     
     word_id,docs = postings.strip().split(':')
     posting_list = [int(d) for d in docs.split(',')]

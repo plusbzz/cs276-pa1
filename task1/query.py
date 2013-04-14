@@ -91,11 +91,11 @@ while True:
   # merge the posting lists to produce the final result
   result = reduce(merge_posting,postings)
 
+  # result is empty :(
   if len(result) == 0:  
     print "no results found"
     continue
 
-  # don't forget to convert doc_id back to doc_name, and sort in lexicographical order
-  # before printing out to stdout
+  # convert doc_id back to doc_name, and sort in lexicographical order
   docs = sorted([doc_id_dict[doc_id] for doc_id in result])
   for doc in docs: print doc  

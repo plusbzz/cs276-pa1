@@ -116,6 +116,7 @@ def writeVariableByteEncodedGaps(strLine,outputFile,postingDictionary):
 def writeNaive(strLine,outputFile,postingDictionary):
   print >> outputFile, strLine
   if postingDictionary is not None:
+    term,docsId = strLine.split(":")
     position = outputFile.tell()
     postingDictionary[term] = (position,len(docsId))
   

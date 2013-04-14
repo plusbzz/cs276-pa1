@@ -49,6 +49,61 @@ def print_postings_to_file(term_doc_list, fname):
       posting_line = str(key) + ":" + ",".join(docs)
       print >> f, posting_line.strip()
 
+def writeNaive(strLine,outputFile,postingDictionary):
+  if postingDictionary is not None:
+    term,docsId = strLine.split(":")
+    position = outputFile.tell()
+    postingDictionary[term] = (position,len(docsId))
+  print >> outputFile, strLine
+  
+
+def mergeBlocks(b1,b2,outputFile,postingDictionary,writeFunc):
+  with open(b1,'r') as b1_f, open(b2,'r') as b2_f, open(outputFile,'wb') as outputFile_f:
+    # (provide implementation merging the two blocks of posting lists)
+    # write the new merged posting lists block to file 'outputFile_f'
+    line1 = b1_f.readline().strip()
+    line2 = b2_f.readline().strip()
+
+    while True:     
+      if line1 == "" and line2 == "":
+        break
+      elif line1 == "": # at least one of the files is done
+        writeFunc(line2,outputFile_f,postingDictionary)    
+        for line in b2_f: writeFunc(line.strip(),outputFile_f,postingDictionary)
+        break
+    
+      elif line2 == "": # at least one of the files is done
+        writeFunc(line1,outputFile_f,postingDictionary)    
+        for line in b1_f: writeFunc(line.strip(),outputFile_f,postingDictionary)
+        break
+    
+      else:  # files have stuff in them
+        term1,docs1 = line1.split(":")
+        term2,docs2 = line2.split(":")
+        term1 = int(term1)
+        term2 = int(term2)
+  
+        # We now have two sorted lists
+        if term1 == term2: 
+          docs1 = [int(d) for d in docs1.strip().split(",")]
+          docs2 = [int(d) for d in docs2.strip().split(",")]
+          docs  = [str(d) for d in sorted(docs1+docs2)]
+          
+          line = str(term1) + ":" + ",".join(docs)
+          writeFunc(line.strip(),outputFile_f,postingDictionary)
+          
+          line1 = b1_f.readline().strip()
+          line2 = b2_f.readline().strip()
+          
+        elif term1 < term2:
+          writeFunc(line1.strip(),outputFile_f,postingDictionary)
+          line1 = b1_f.readline().strip()
+          
+        else:
+          writeFunc(line2.strip(),outputFile_f,postingDictionary)
+          line2 = b2_f.readline().strip()
+
+
 #########################
 
 doc_id = -1
@@ -93,7 +148,6 @@ for dir in sorted(os.listdir(root)):
 print >> sys.stderr, '######\nposting list construction finished!\n##########'
 
 print >> sys.stderr, '\nMerging postings...'
-
 dircnt = 1
 while len(block_q) > 1:
   b1 = block_q.popleft()
@@ -104,65 +158,21 @@ while len(block_q) > 1:
   
   print >> sys.stderr, 'merging %s and %s into %s' % (b1, b2,b_comb)
   
-  with open(b1,'r') as b1_f, open(b2,'r') as b2_f, open(comb,'w') as comb_f:
-    # (provide implementation merging the two blocks of posting lists)
-    # write the new merged posting lists block to file 'comb_f'
-    line1 = b1_f.readline().strip()
-    line2 = b2_f.readline().strip()
-
-    while True:     
-      if line1 == "" and line2 == "":
-        break
-      elif line1 == "": # at least one of the files is done
-        print >> comb_f, line2
-        for line in b2_f: print >> comb_f,line.strip()
-        break
-      elif line2 == "": # at least one of the files is done
-        print >> comb_f, line1
-        for line in b1_f: print >> comb_f,line.strip()
-        break
-      else:  # files have stuff in them
-        term1,docs1 = line1.split(":")
-        term2,docs2 = line2.split(":")
-        term1 = int(term1)
-        term2 = int(term2)
+  if len(block_q) > 0:
+    mergeBlocks(b1,b2,comb,None,writeNaive)
+  else:
+    # These are the last two blocks, generate a compressed/encoded corpus index
+    mergeBlocks(b1,b2,comb,posting_dict,writeNaive)
   
-        # We now have two sorted lists
-        if term1 == term2: 
-          docs1 = [int(d) for d in docs1.strip().split(",")]
-          docs2 = [int(d) for d in docs2.strip().split(",")]
-          docs  = [str(d) for d in sorted(docs1+docs2)]
-          print >> comb_f, str(term1) + ":" + ",".join(docs)
-          line1 = b1_f.readline().strip()
-          line2 = b2_f.readline().strip()
-        elif term1 < term2:
-          print >> comb_f,line1
-          line1 = b1_f.readline().strip()
-        else:
-          print >> comb_f,line2
-          line2 = b2_f.readline().strip()
-          
   os.remove(b1)
   os.remove(b2)
   block_q.append(comb)
+    
     
 print >> sys.stderr, '\nPosting Lists Merging DONE!'
 
 # rename the final merged block to corpus.index
 final_name = block_q.popleft()
-# Create postings dictionary
-with open(final_name,'r') as index:
-  fp = 0
-  line = index.readline()
-  while True:
-    if line != "":
-      term,docs = line.strip().split(':')    
-      posting_dict[term] = (fp,len(docs.split(',')))
-      fp = index.tell()
-      line = index.readline()
-    else:
-      break
-    
 os.rename(final_name, out_dir+'/corpus.index')
 
 

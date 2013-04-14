@@ -64,23 +64,6 @@ def variableByteEncodeNumber(aNumber):
     bytes[-1] += 128    
     return bytes
 
-
-def variableByteDecodeArray(byteArray):
-    numbers = [];
-    number  = 0;
-    
-    for byte in byteArray:
-        if byte < 128:
-            # Continuation Bit = 0
-            number = 128*number + byte
-        else:
-            # Continuation Bit = 1
-            number = 128*number + (byte-128)
-            numbers.append(number)
-            number = 0
-            
-    return numbers
-
 def variableByteEncodeNumbers(numbers):
     encodedNumbers = []
     for number in numbers:

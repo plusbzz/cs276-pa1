@@ -154,7 +154,7 @@ def mergeBlocks(b1,b2,outputFile,postingDictionary,writeFunc):
 
 #########################
 
-doc_id = -1
+doc_id = 0
 word_id = 0
 
 for dir in sorted(os.listdir(root)):

@@ -64,7 +64,7 @@ def gammaEncodeNumbers(numbers):
       encodedNumbers += gammaEncodeNumber(number)
   
   sz = len(encodedNumbers)
-  padsize = 8 - (sz % 8)
+  padsize = (8 - (sz % 8))%8
   encodedNumbers = '0'*padsize + encodedNumbers
   # divide string into list of 'bytes'
   encodedGaps = []
@@ -73,7 +73,7 @@ def gammaEncodeNumbers(numbers):
     byte = int(byte,2)
     encodedGaps.append(byte)    
 
-  return encodedGaps
+  return (encodedGaps,padsize)
 
 def generateGaps(docIdList):
     gaps = []
@@ -90,10 +90,10 @@ def writeGammaEncodedGaps(strLine,outputFile,postingDictionary):
     docsId = sorted([int(d) for d in docsId.strip().split(",")])
     
     position = outputFile.tell()
-    postingDictionary[term] = (position,len(docsId))
     
     gaps        = generateGaps(docsId)
-    encodedGaps = gammaEncodeNumbers(gaps)
+    (encodedGaps,padsize) = gammaEncodeNumbers(gaps)
+    postingDictionary[term] = (position,len(docsId),padsize)
     
     #print >> sys.stderr, "Writing to file %s the code: %d in byte %d" % (outputfile,number,position)
     # TODO: Find a way to write a block of bytes instead of writing byte per byte

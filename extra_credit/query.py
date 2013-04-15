@@ -23,6 +23,7 @@ word_dict = {}
 doc_id_dict = {}
 file_pos_dict = {}
 doc_freq_dict = {}
+start_ptr_dict = {}
 
 print >> sys.stderr, 'loading word dict'
 for line in word_dict_f.readlines():
@@ -40,9 +41,10 @@ for line in posting_dict_f.readlines():
   term_id = int(parts[0])
   file_pos = int(parts[1])
   doc_freq = int(parts[2])
+  start_ptr = int(parts[3])
   file_pos_dict[term_id] = file_pos
   doc_freq_dict[term_id] = doc_freq
-
+  start_ptr_dict[term_id] = start_ptr
 
 # corpus.index is compressed; the length in bytes of the postings list for word_n is calculated:
 # file_pos_dict[word_n+1] - file_pos_dict[word_n]
@@ -51,27 +53,43 @@ total_bytes_in_index = os.path.getsize(index_dir+'/corpus.index')
 last_term_id = len(word_dict) - 1
 
 
-def gammaDecodeArray(byteArray):
+def gammaDecodeArray(byteArray,startPtr):
   decodedGaps = [];
   decodedGapStr = ""
   
   for byte in byteArray:
-    decodedGapStr += bin(byte)[2:]
+    numStr = bin(byte)[2:]
+    if len(numStr) < 8:
+      numStr = '0'*(8-len(numStr)) + numStr
+    decodedGapStr += numStr
+
+  sz = len(decodedGapStr)
+  if sz % 8 > 0:
+    padsize = 8 - (sz % 8)
+    decodedGapStr = ('0'*padsize + decodedGapStr)
   
+  decodedGapStr = decodedGapStr[startPtr:]
+   
+  #print >>sys.stderr,decodedGapStr,startPtr
+
   strptr = 0
   sz = len(decodedGapStr)
   while strptr < sz:
-    count = 0
-    while strptr < sz and decodedGapStr[strptr] == "1":
+    if decodedGapStr[strptr] == '0':
       strptr += 1
-      count += 1
+      decodedGaps.append(1)
+    else:
+      count = 0
+      while decodedGapStr[strptr] == "1":
+        strptr += 1
+        count += 1
     
-    strptr += 1
-    gap = '1'+decodedGapStr[strptr:(strptr+count)]
-    strptr += count
-    decodedGaps.append(int(gap,2))
+      strptr += 1
+      gap = '1'+decodedGapStr[strptr:(strptr+count)]
+      strptr += count
+      decodedGaps.append(int(gap,2))
   
-  print decodedGaps          
+  #print >>sys.stderr, decodedGaps          
   return decodedGaps
 
 def generateDocIds(gapList):
@@ -83,11 +101,11 @@ def generateDocIds(gapList):
         
     return docIds
   
-def readCompressedIndex(index_f,wordId,file_pos,numberOfBytes):
+def readCompressedIndex(index_f,wordId,file_pos,numberOfBytes,startPtr):
   index_f.seek(file_pos)
   
   encodedGaps = bytearray(index_f.read(numberOfBytes))
-  decodedGaps = gammaDecodeArray(encodedGaps)
+  decodedGaps = gammaDecodeArray(encodedGaps,startPtr)
   docIds      = generateDocIds(decodedGaps)
   
   return str(wordId) + ":" + ",".join([str(d) for d in docIds])
@@ -109,7 +127,8 @@ def read_posting(term):
       positionNextTerm = file_pos_dict[term_id+1]
       
     gapListLengthInBytes = positionNextTerm - file_pos
-    postings = readCompressedIndex(index_f,term_id,file_pos,gapListLengthInBytes)
+    startPtr = start_ptr_dict[term_id]
+    postings = readCompressedIndex(index_f,term_id,file_pos,gapListLengthInBytes,startPtr)
     
     word_id,docs = postings.strip().split(':')
     posting_list = [int(d) for d in docs.split(',')]

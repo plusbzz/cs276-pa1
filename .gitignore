@@ -1,4 +1,6 @@
 data
+toy_example
+*output
 *.py[cod]
 
 # C extensions

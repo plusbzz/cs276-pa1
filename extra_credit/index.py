@@ -95,8 +95,6 @@ def writeGammaEncodedGaps(strLine,outputFile,postingDictionary):
     (encodedGaps,padsize) = gammaEncodeNumbers(gaps)
     postingDictionary[term] = (position,len(docsId),padsize)
     
-    #print >> sys.stderr, "Writing to file %s the code: %d in byte %d" % (outputfile,number,position)
-    # TODO: Find a way to write a block of bytes instead of writing byte per byte
     for number in encodedGaps:
       outputFile.write(chr(number))        
 

@@ -92,8 +92,6 @@ def writeVariableByteEncodedGaps(strLine,outputFile,postingDictionary):
     encodedGaps = variableByteEncodeNumbers(gaps)
     
     for number in encodedGaps:
-      #print >> sys.stderr, "Writing to file %s the code: %d in byte %d" % (outputfile,number,position)
-      # TODO: Find a way to write a block of bytes instead of writing byte per byte 
       outputFile.write(chr(number))        
 
 def writeNaive(strLine,outputFile,postingDictionary):

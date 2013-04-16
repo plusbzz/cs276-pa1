@@ -9,7 +9,20 @@ if len(sys.argv) != 2:
   os._exit(-1)
 
 def merge_posting (postings1, postings2):
-  new_posting = sorted(list(set(postings1).intersection(set(postings2))))
+  new_posting = []
+  p1 = deque(postings1)
+  p2 = deque(postings2)
+  
+  while len(p1) > 0 and len(p2) > 0:
+    if p1[0] == p2[0]:
+      new_posting.append(p1[0])
+      p1.popleft()
+      p2.popleft()
+    elif p1[0] < p2[0]:
+      p1.popleft()
+    else:
+      p2.popleft()
+      
   return new_posting
 
 # file locate of all the index related files

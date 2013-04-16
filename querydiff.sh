@@ -1,3 +1,4 @@
+# From https://piazza.com/class#spring2013/cs276/128
 ./run.sh data output1 dev_queries $1/index.sh $1/query.sh
 for ((i = 1 ; i < 9 ; i++))
 do
